@@ -1,0 +1,23 @@
+version: '3.9'
+services:
+  db:
+    image: mysql:8.0
+    environment:
+      MYSQL_ROOT_PASSWORD: rootpass
+    ports:
+      - "3307:3306"
+    volumes:
+      - ./db/schema.sql:/docker-entrypoint-initdb.d/schema.sql:ro
+
+  app:
+    build: .
+    depends_on:
+      - db
+    ports:
+      - "5000:5000"         # change to "5001:5000" if 5000 is busy
+    volumes:
+      - .:/app
+    environment:
+      - FLASK_ENV=development
+    command: >
+      flask --app app.main:app run --host=0.0.0.0 --port=5000

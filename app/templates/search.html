@@ -1,0 +1,63 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <title>Search NYC 311</title>
+  <style>
+    body{font-family:Arial, sans-serif; margin:20px;}
+    form input{margin-right:8px;}
+    table{border-collapse:collapse; width:100%; margin-top:12px;}
+    th,td{border:1px solid #ddd; padding:6px; font-size:14px;}
+    th{background:#f6f6f6;}
+    .pager a{margin-right:8px; text-decoration:none;}
+  </style>
+</head>
+<body>
+  <h1>Search NYC 311</h1>
+
+  <form method="get">
+    <label>Borough:
+      <input name="borough" value="{{ borough or '' }}" placeholder="MANHATTAN">
+    </label>
+    <label>Complaint Type:
+      <input name="complaint_type" value="{{ complaint_type or '' }}" placeholder="Noise - Street/Sidewalk">
+    </label>
+    <label>Start:
+      <input name="start" type="date" value="{{ start or '' }}">
+    </label>
+    <label>End:
+      <input name="end" type="date" value="{{ end or '' }}">
+    </label>
+    <button type="submit">Search</button>
+    <a href="/summary">Summary</a>
+  </form>
+
+  <p><b>{{ total }}</b> results. Page {{ page }} of {{ total_pages }}.</p>
+
+  <table>
+    <tr>
+      <th>unique_key</th><th>created_date</th><th>agency</th>
+      <th>complaint_type</th><th>descriptor</th><th>borough</th>
+    </tr>
+    {% for r in rows %}
+    <tr>
+      <td>{{ r.unique_key }}</td>
+      <td>{{ r.created_date }}</td>
+      <td>{{ r.agency }}</td>
+      <td>{{ r.complaint_type }}</td>
+      <td>{{ r.descriptor }}</td>
+      <td>{{ r.borough }}</td>
+    </tr>
+    {% endfor %}
+  </table>
+
+  <div class="pager">
+    {% if page > 1 %}
+      <a href="?borough={{ borough }}&complaint_type={{ complaint_type }}&start={{ start }}&end={{ end }}&page={{ page-1 }}">Prev</a>
+    {% endif %}
+    {% if page < total_pages %}
+      <a href="?borough={{ borough }}&complaint_type={{ complaint_type }}&start={{ start }}&end={{ end }}&page={{ page+1 }}">Next</a>
+    {% endif %}
+  </div>
+</body>
+</html>

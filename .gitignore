@@ -1,0 +1,15 @@
+# Ignore large CSVs and data files
+data/*.csv
+data/*.parquet
+
+# Ignore Python cache folders
+__pycache__/
+.pytest_cache/
+
+# Ignore virtual environments
+env/
+venv/
+
+# Ignore system and temporary files
+*.log
+*.tmp
