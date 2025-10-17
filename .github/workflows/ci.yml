@@ -1,36 +1,78 @@
-name: CI
+name: CI Pipeline
 
-on: [push, pull_request]
+on:
+  push:
+  pull_request:
 
 jobs:
   build-test:
     runs-on: ubuntu-latest
+
     services:
       mysql:
         image: mysql:8.0
         env:
           MYSQL_ROOT_PASSWORD: rootpass
-        ports: ['3306:3306']
+          MYSQL_DATABASE: nyc311
+        ports:
+          - 3306:3306
         options: >-
-          --health-cmd="mysqladmin ping -h localhost"
+          --health-cmd="mysqladmin ping -h localhost -prootpass"
           --health-interval=10s
           --health-timeout=5s
-          --health-retries=3
+          --health-retries=12
 
     steps:
-      - name: Checkout repo
-        uses: actions/checkout@v3
+      - name: Checkout repository
+        uses: actions/checkout@v4
 
       - name: Set up Python
-        uses: actions/setup-python@v4
+        uses: actions/setup-python@v5
         with:
-          python-version: '3.11'
+          python-version: "3.11"
 
-      - name: Install dependencies
-        run: pip install -r requirements.txt
+      - name: Install Google Chrome (for headless Selenium)
+        uses: browser-actions/setup-chrome@v1
 
-      - name: Run ETL
+      - name: Install Python dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Wait for MySQL and apply schema
+        run: |
+          sudo apt-get update && sudo apt-get install -y mysql-client curl
+          # ensure DB exists and apply your schema
+          mysql -hmysql -uroot -prootpass -e "CREATE DATABASE IF NOT EXISTS nyc311;"
+          mysql -hmysql -uroot -prootpass nyc311 < db/schema.sql
+
+      - name: Prepare tiny fixture as ETL input
+        run: |
+          mkdir -p data
+          cp tests/fixtures/311_sample.csv data/311_2023_01.csv
+
+      - name: Point code to CI MySQL host (mysql instead of db)
+        run: |
+          sed -i "s/@db:3306/@mysql:3306/g" etl/etl.py || true
+          sed -i "s/@db:3306/@mysql:3306/g" app/main.py || true
+
+      - name: Run ETL on fixture
         run: python etl/etl.py
 
-      - name: Run Tests
-        run: pytest -v
+      - name: Start Flask app in background
+        env:
+          FLASK_APP: app.main
+        run: |
+          python -m flask run --host=0.0.0.0 --port=5000 &
+          # wait until Flask is ready
+          for i in {1..30}; do
+            if curl -fsS http://localhost:5000 > /dev/null; then
+              echo "Flask is up"; break
+            fi
+            sleep 1
+          done
+
+      - name: Run Selenium tests (headless)
+        env:
+          WDM_LOG: "0"
+        run: pytest tests/selenium_test.py -v
